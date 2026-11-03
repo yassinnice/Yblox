@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roblox Game Kit - Lobby & Multiplayer</title>
+    <style>
+        /* --- GLOBAL STYLES --- */
+        :root {
+            --bg-dark: #0f1115;
+            --bg-panel: #1a1d24;
+            --accent-blue: #3498db;
+            --accent-green: #00b894;
+            --accent-gold: #f1c40f;
+            --text-main: #f5f6fa;
+            --text-dim: #a4b0be;
+            --border-light: rgba(255, 255, 255, 0.1);
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; user-select: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: var(--bg-dark); overflow: hidden; touch-action: none; }
+
+        /* --- LOBBY SCREEN --- */
+        #lobby-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #2c3e50 0%, #0f1115 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 20000; transition: opacity 0.5s ease;
+        }
+
+        .lobby-container {
+            background: var(--bg-panel); border: 1px solid var(--border-light);
+            border-radius: 16px; width: 450px; max-width: 90%; padding: 40px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5); text-align: center;
+        }
+
+        .lobby-title { font-size: 32px; font-weight: 800; color: var(--text-main); margin-bottom: 30px; letter-spacing: 2px; }
+
+        .setup-section { margin-bottom: 30px; text-align: left; }
+        .setup-label { display: block; font-size: 12px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px; font-weight: bold; }
+        
+        .lobby-input {
+            width: 100%; background: #111; border: 1px solid var(--border-light);
+            color: #fff; padding: 12px 15px; border-radius: 8px; font-size: 16px; outline: none; transition: border 0.2s;
+        }
+        .lobby-input:focus { border-color: var(--accent-blue); }
+
+        .avatar-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 10px; }
+        .avatar-btn {
+            background: #111; border: 2px solid transparent; border-radius: 8px;
+            padding: 10px 0; cursor: pointer; color: #fff; font-size: 12px; font-weight: bold; transition: all 0.2s;
+        }
+        .avatar-btn.selected { border-color: var(--accent-green); background: rgba(0, 184, 148, 0.2); transform: translateY(-2px); }
+
+        .lobby-divider { height: 1px; background: var(--border-light); margin: 30px 0; }
+
+        .action-btn {
+            width: 100%; padding: 15px; font-size: 16px; font-weight: bold; color: #fff;
+            border: none; border-radius: 8px; cursor: pointer; margin-bottom: 12px;
+            transition: transform 0.1s, filter 0.2s; display: flex; justify-content: center; align-items: center; gap: 10px;
+        }
+        .action-btn:hover { filter: brightness(1.1); }
+        .action-btn:active { transform: scale(0.98); }
+        .btn-public { background: var(--accent-blue); }
+        .btn-private { background: #9b59b6; }
+        
+        .join-row { display: flex; gap: 10px; margin-top: 12px; }
+        .join-row input { flex: 1; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; text-align: center; }
+        .btn-join { background: var(--accent-gold); color: #000; width: 100px; }
+
+        /* --- GAME SCREEN (Hidden initially) --- */
+        #game-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; }
+        #gameCanvas { background: #1e272e; width: 100%; height: 100%; display: block; }
+
+        /* --- IN-GAME HUD --- */
+        #hud-bar {
+            position: absolute; top: 20px; right: 20px; z-index: 1000;
+            display: flex; gap: 12px; align-items: center;
+            background: rgba(20, 22, 25, 0.9); padding: 10px 16px;
+            border-radius: 12px; border: 1px solid var(--border-light);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); color: #fff;
+        }
+        #server-badge { background: #111; border: 1px solid var(--accent-blue); color: var(--accent-blue); padding: 8px 12px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        #server-badge:hover { background: rgba(52, 152, 219, 0.2); }
+        #open-server-btn { background: var(--accent-blue); border: none; color: #fff; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; transition: transform 0.1s; }
+        #open-server-btn:active { transform: scale(0.95); }
+        #online-count { font-size: 14px; color: var(--accent-green); font-weight: bold; margin-left: 5px; }
+
+        #top-logo {
+            position: absolute; top: 20px; left: 20px; width: 60px; height: 60px;
+            border-radius: 12px; border: 2px solid rgba(255,255,255,0.8); z-index: 1000;
+            cursor: pointer; background: #222; object-fit: cover; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+
+        /* --- JOYSTICK --- */
+        #joy-base {
+            position: absolute; bottom: 50px; left: 50px; width: 140px; height: 140px;
+            background: rgba(0, 0, 0, 0.4); border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%; z-index: 1000; display: flex; justify-content: center; align-items: center;
+        }
+        #joy-stick { width: 60px; height: 60px; background: rgba(255, 255, 255, 0.8); border-radius: 50%; pointer-events: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+
+        /* --- MODALS --- */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 15000;
+            justify-content: center; align-items: center; pointer-events: auto;
+        }
+        .modal-box {
+            background: var(--bg-panel); border: 1px solid var(--border-light); border-radius: 12px;
+            width: 400px; padding: 30px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6); color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. CHOOSE LOBBY SCREEN -->
+    <div id="lobby-screen">
+        <div class="lobby-container">
+            <div class="lobby-title">CHOOSE LOBBY</div>
+            
+            <div class="setup-section">
+                <span class="setup-label">Your Username</span>
+                <input type="text" id="lobby-username" class="lobby-input" maxlength="16" placeholder="Enter username...">
+            </div>
+
+            <div class="setup-section">
+                <span class="setup-label">Select Avatar</span>
+                <div class="avatar-grid" id="lobby-avatars">
+                    <button class="avatar-btn selected" data-id="0">Bacon</button>
+                    <button class="avatar-btn" data-id="1">Ninja</button>
+                    <button class="avatar-btn" data-id="2">King</button>
+                    <button class="avatar-btn" data-id="3">Demon</button>
+                    <button class="avatar-btn" data-id="4">Valk</button>
+                </div>
+            </div>
+
+            <div class="lobby-divider"></div>
+
+            <button class="action-btn btn-public" id="btn-play-public">🌐 Join Public Server</button>
+            <button class="action-btn btn-private" id="btn-play-private">🔒 Create Private Server</button>
+            
+            <div class="join-row">
+                <input type="text" id="lobby-join-code" class="lobby-input" maxlength="8" placeholder="ROOM CODE">
+                <button class="action-btn btn-join" id="btn-play-join">JOIN</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. GAME SCREEN (Canvas & HUD) -->
+    <div id="game-screen">
+        <img src="https://i.imghippo.com/files/FsM9340oIE.jpeg" id="top-logo" alt="Disconnect Prank">
+
+        <div id="hud-bar">
+            <span id="server-badge" title="Click to copy server code">🌐 PUBLIC</span>
+            <button id="open-server-btn">⚙️ Servers</button>
+            <span id="online-count">● 1</span>
+        </div>
+        
+        <canvas id="gameCanvas"></canvas>
+        <div id="joy-base"><div id="joy-stick"></div></div>
+    </div>
+
+    <!-- 3. IN-GAME SERVER MANAGER MODAL -->
+    <div id="server-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h2 style="margin-top:0;">Server Manager</h2>
+            <p style="color: var(--text-dim); margin-bottom: 20px;">Current Server: <strong id="modal-current-server" style="color:var(--accent-gold);">PUBLIC</strong></p>
+            
+            <button class="action-btn btn-public" id="btn-copy-code" style="margin-bottom: 10px;">📋 Copy Invite Code</button>
+            <button class="action-btn btn-private" id="btn-return-lobby" style="background:#e74c3c;">🚪 Leave to Lobby</button>
+            <button class="action-btn" id="btn-close-modal" style="background:#555; margin-top: 15px;">Close Menu</button>
+        </div>
+    </div>
+
+    <!-- 4. PRANK DISCONNECT MODAL -->
+    <div id="roblox-disconnect" class="modal-overlay" style="z-index: 25000;">
+        <div class="modal-box" style="background-color: #393B3D;">
+            <div style="font-size: 24px; font-weight: bold; margin-bottom: 15px;">Disconnected</div>
+            <div style="font-size: 16px; color: #BDBDBD; margin-bottom: 30px;">Please check your internet connection and try again.<br><br>(Error Code: 277)</div>
+            <div style="display: flex; gap: 10px;">
+                <button class="action-btn" style="background: transparent; border: 1px solid #BDBDBD;" onclick="window.location.reload()">Leave</button>
+                <button class="action-btn" style="background: #FFF; color: #111;" onclick="document.getElementById('roblox-disconnect').style.display='none'">Reconnect</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
